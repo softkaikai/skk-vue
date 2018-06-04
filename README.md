@@ -1,5 +1,5 @@
 ## Skk-vue
-** skk-vue ** is a project for learning vue. So it's not surprised if you find some similar or completely same code. The library implement most of functions that belong to vue including ** __ bind methods、bind data twoway、computed data、customize component  __ ** and so on.
+**skk-vue** is a project for learning vue. So it's not surprised if you find some similar or completely same code. The library implement most of functions that belong to vue including **__ bind methods、bind data twoway、computed data、customize component  __** and so on.
 
 ## Install
 Recommended Install
@@ -87,7 +87,7 @@ The HTML structure looks like this:
 The function is developing. Please be patient :flags:
 
 ## Use Tips
-The library is just for learning and at the stage of experiment. So I can percent determine the library that lacks of complete Compatibility and Function tests must have many bugs that are strange and unexpected.Before you insist on using it, I hope you can realize what you will face. :chicken:
+The library is just for learning and at the stage of experiment. So I can percent determine the library that lacks of **complete Compatibility and Function tests** must have many bugs that are strange and unexpected.Before you insist on using it, I hope you can realize what you will face. :chicken:
 
 ## License
 MIT license
