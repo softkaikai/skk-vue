@@ -83,6 +83,25 @@ The HTML structure looks like this:
 |v-bind|`<div v-bind:id="myId"></div>`|
 |v-on|`<div v-on:click="myClick"></div>`|
 
+## support coumputed
+You can use computed property just as simple as vue, like below:
+**Note:** don't use allow function in the computed property, which may cause unexpected errors
+```
+  var demo = new Sue({
+      data: function() {
+        return {
+          firstName: 'xiao',
+          lastName: 'ming'
+        }
+      }
+      computed: {
+        fullname: function() {
+          return this.firstName + this.lastName;
+        }
+      }
+    })
+    console.log(demo.fullname) // xiaoming
+```
 ## Customize Component
 The function is developing. Please be patient :flags:
 

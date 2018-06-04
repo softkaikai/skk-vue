@@ -5,6 +5,7 @@ export default {
         this.dirUpdate(el, this.vm[this.dirValue]);
         this.el.addEventListener('input', (e) => {
             this.dirUpdate(el, el.value);
+            this.vm[this.dirValue] = el.value;
         })
     },
     dirUpdate: function (el, value) {
