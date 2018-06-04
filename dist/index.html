@@ -13,8 +13,8 @@
 <body>
 <div id="container">
     <div id="my-app">
-        <button type="button" v-on@click="changeName">click</button>
-        <button type="button" v-on@click="getName">get</button>
+        <button type="button" v-on:click="changeName">click</button>
+        <button type="button" v-on:click="getName">get</button>
         {{name}}
         <span v-text="name"></span>
         <input type="text" v-bind:placeholder="placeholder"

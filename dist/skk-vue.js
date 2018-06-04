@@ -449,8 +449,8 @@ var Sue = (function () {
                 name = attr.name.split(':')[0];
             }
             if (matchVOn.test(attr.name)) {
-                dirParam = attr.name.split('@')[1];
-                name = attr.name.split('@')[0];
+                dirParam = attr.name.split(':')[1];
+                name = attr.name.split(':')[0];
             }
             return {
                 name: name || attr.name,
