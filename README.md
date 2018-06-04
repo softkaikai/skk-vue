@@ -83,7 +83,7 @@ The HTML structure looks like this:
 |v-bind|`<div v-bind:id="myId"></div>`|
 |v-on|`<div v-on:click="myClick"></div>`|
 
-## support coumputed
+## Support Coumputed
 You can use computed property just as simple as vue, like below:
 **Note:** don't use allow function in the computed property, which may cause unexpected errors
 ```
