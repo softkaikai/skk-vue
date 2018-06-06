@@ -11,6 +11,7 @@
     </style>
 </head>
 <body>
+<div id="demo">  111  {{'textNode.data' + name}}  222  </div>
 <div id="container">
     <div id="my-app">
         <button type="button" v-on@click="changeName">click</button>
@@ -28,7 +29,10 @@
 <script src="skk-vue.js"></script>
 <script>
 
-    let dom = document.getElementById('my-app');
+    let dom = document.getElementById('demo');
+    let textNode = dom.childNodes[0];
+    // textNode.data = 'jiejie';
+    console.log(textNode.data);
 
     /*var vm = new Vue({
         el: '#my-app',
