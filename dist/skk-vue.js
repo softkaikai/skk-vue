@@ -41,6 +41,125 @@ var Sue = (function () {
 
     Dep.target = null;
 
+    let watcherId = 0;
+    let wait = false;
+    let watchers = [];
+    function pushQueen(watcher) {
+        if (watchers.includes(watcher.id)) {
+            return;
+        }
+        watchers.push(watcher);
+        if (!wait) {
+            watcherQueen();
+        }
+    }
+    function watcherQueen() {
+        setTimeout(() => {
+            watchers.forEach((watcher) => {
+                watcher.run();
+            });
+            wait = false;
+            watchers = [];
+        }, 0);
+    }
+    class Watcher {
+        constructor (vm, expOrFn, cb, options) {
+            if (options) {
+                this.deep = options.deep;
+                this.sync = options.sync;
+            } else {
+                this.deep = false;
+                this.sync = false;
+            }
+            this.id = watcherId++;
+            this.vm = vm;
+            this.cb = cb;
+            this.expOrFn = expOrFn;
+            this.depIds = new Set();
+            this.value = this.get();
+        }
+        update () {
+            if (!this.sync) {
+                pushQueen(this);
+            } else {
+                this.run();
+            }
+        }
+        run () {
+            const value = this.get();
+            if (this.value !== value || isObject(value) || Array.isArray(value)) {
+                this.cb.call(this.vm, value, this.value);
+                this.value = value;
+            }
+        }
+        get () {
+            let vm = this.vm;
+            let getter = null;
+            if (typeof this.expOrFn === 'function') {
+              getter = this.expOrFn.bind(vm);
+            } else {
+              if (vm.$options.computed && vm.$options.computed[this.expOrFn]) {
+                getter = vm.$options.computed[this.expOrFn].bind(vm);
+              } else {
+                getter = parseExpOrFn(this.expOrFn);
+              }
+            }
+            Dep.target = this;
+            const value = getter(vm);
+            if (this.deep) {
+                // touch every property so they can all track their getter for deep watching
+                traverse(value);
+            }
+            Dep.target = null;
+            return value;
+        }
+        addDep (dep) {
+            if (!this.depIds.has(dep.id)) {
+                this.depIds.add(dep.id);
+                dep.addSub(this);
+            }
+        }
+    }
+
+    function traverse(val) {
+        const isA = Array.isArray(val);
+        const isObj = isObject(val);
+        if (!isA && !isObj) {
+            return;
+        }
+        if (isA) {
+            for (let [index, arrVal] of val.entries()) {
+                traverse(arrVal);
+            }
+        } else if(isObj) {
+            for (let [key, objVal] of Object.entries(val)) {
+                traverse(val[key]);
+            }
+        }
+    }
+
+
+    function parseExpOrFn (expOrFn) {
+        const segments = expOrFn.split('.');
+
+        return function(obj) {
+            for (let val of segments) {
+                if (!obj) {
+                    break;
+                } else {
+                    obj = obj[val];
+                }
+            }
+            if (isObject(obj)) {
+                return Object.assign({}, obj);
+            }
+            if (Array.isArray(obj)) {
+                return [...obj]
+            }
+            return obj;
+        }
+    }
+
     class Observer {
         constructor (value) {
             this.value = value;
@@ -111,6 +230,9 @@ var Sue = (function () {
         if (options.data) {
             initData(Sue, options.data);
         }
+        if (options.computed) {
+          initComputed(Sue, options.computed);
+        }
     }
 
     var sharePropertyDefinition = {
@@ -127,6 +249,27 @@ var Sue = (function () {
             Sue[sourceKey][key] = val;
         };
         Object.defineProperty(Sue, key, sharePropertyDefinition);
+    }
+
+    function initComputed(Sue, computed) {
+      let watchers = Sue._computedWatchers = Object.create(null);
+
+      for (let key in computed) {
+        if (key in Sue) {
+          throw new Error(`The computed property has in Sue`);
+        } else {
+          const getter = computed[key];
+          watchers[key] = new Watcher(Sue, getter, noop);
+          defineComputed(Sue, key, getter);
+        }
+      }
+    }
+
+    function defineComputed(Sue, key, getter) {
+      sharePropertyDefinition.get = getter;
+      sharePropertyDefinition.set = noop;
+
+      Object.defineProperty(Sue, key, sharePropertyDefinition);
     }
 
     function initData(Sue, data) {
@@ -209,6 +352,7 @@ var Sue = (function () {
             this.dirUpdate(el, this.vm[this.dirValue]);
             this.el.addEventListener('input', (e) => {
                 this.dirUpdate(el, el.value);
+                this.vm[this.dirValue] = el.value;
             });
         },
         dirUpdate: function (el, value) {
@@ -222,116 +366,6 @@ var Sue = (function () {
         'v-on': vOn,
         'v-text': vText,
         'v-model': vModel,
-    }
-
-    let watcherId = 0;
-    let wait = false;
-    let watchers = [];
-    function pushQueen(watcher) {
-        if (watchers.includes(watcher.id)) {
-            return;
-        }
-        watchers.push(watcher);
-        if (!wait) {
-            watcherQueen();
-        }
-    }
-    function watcherQueen() {
-        setTimeout(() => {
-            watchers.forEach((watcher) => {
-                watcher.run();
-            });
-            wait = false;
-            watchers = [];
-        }, 0);
-    }
-    class Watcher {
-        constructor (vm, expOrFn, cb, options) {
-            if (options) {
-                this.deep = options.deep;
-                this.sync = options.sync;
-            } else {
-                this.deep = false;
-                this.sync = false;
-            }
-            this.id = watcherId++;
-            this.vm = vm;
-            this.cb = cb;
-            this.expOrFn = expOrFn;
-            this.depIds = new Set();
-            this.value = this.get();
-        }
-        update () {
-            if (!this.sync) {
-                pushQueen(this);
-            } else {
-                this.run();
-            }
-        }
-        run () {
-            const value = this.get();
-            if (this.value !== value || isObject(value) || Array.isArray(value)) {
-                this.cb.call(this.vm, value, this.value);
-                this.value = value;
-            }
-        }
-        get () {
-            let vm = this.vm;
-            const getter = parseExpOrFn(this.expOrFn);
-            Dep.target = this;
-            const value = getter(vm);
-            if (this.deep) {
-                // touch every property so they can all track their getter for deep watching
-                traverse(value);
-            }
-            Dep.target = null;
-            return value;
-        }
-        addDep (dep) {
-            if (!this.depIds.has(dep.id)) {
-                this.depIds.add(dep.id);
-                dep.addSub(this);
-            }
-        }
-    }
-
-    function traverse(val) {
-        const isA = Array.isArray(val);
-        const isObj = isObject(val);
-        if (!isA && !isObj) {
-            return;
-        }
-        if (isA) {
-            for (let [index, arrVal] of val.entries()) {
-                traverse(arrVal);
-            }
-        } else if(isObj) {
-            for (let [key, objVal] of Object.entries(val)) {
-                traverse(val[key]);
-            }
-        }
-    }
-
-
-    function parseExpOrFn (expOrFn) {
-        const segments = expOrFn.split('.');
-
-        return function(obj) {
-            for (let val of segments) {
-                if (!obj) {
-                    break;
-                } else {
-                    obj = obj[val];
-                }
-            }
-            if (isObject(obj)) {
-                return Object.assign({}, obj);
-            }
-            if (Array.isArray(obj)) {
-                return [...obj]
-            }
-            return obj;
-        }
     }
 
     class Directive {
@@ -449,8 +483,8 @@ var Sue = (function () {
                 name = attr.name.split(':')[0];
             }
             if (matchVOn.test(attr.name)) {
-                dirParam = attr.name.split('@')[1];
-                name = attr.name.split('@')[0];
+                dirParam = attr.name.split(':')[1];
+                name = attr.name.split(':')[0];
             }
             return {
                 name: name || attr.name,

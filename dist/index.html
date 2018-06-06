@@ -14,18 +14,19 @@
 <div id="demo">  111  {{'textNode.data' + name}}  222  </div>
 <div id="container">
     <div id="my-app">
-        <button type="button" v-on@click="changeName">click</button>
-        <button type="button" v-on@click="getName">get</button>
+        <button type="button" v-on:click="changeName">click</button>
+        <button type="button" v-on:click="getName">get</button>
         {{name}}
         <span v-text="name"></span>
         <input type="text" v-bind:placeholder="placeholder"
-               v-model="temp"
+               v-model="firstName"
         >
 
         <div v-html="myTemp"></div>
+        <div v-text="fullname"></div>
     </div>
 </div>
-<script src="../lib/vue.js"></script>
+<!-- <script src="../lib/vue.js"></script> -->
 <script src="skk-vue.js"></script>
 <script>
 
@@ -61,6 +62,8 @@
                     a: '123',
                     b: '456'
                 },
+                firstName: 'xiao',
+                lastName: 'ming',
                 sage: 22,
                 arr: [1,2,3,4]
             }
@@ -70,16 +73,23 @@
                 this.temp += 10;
             },
             getName (e) {
-                console.log(this.temp);
+                console.log(this.firstName);
             },
             changeAge (age) {
                 this.sage = age;
+            }
+        },
+        computed: {
+            fullname: function() {
+              return this.firstName + this.lastName;
             }
         }
     })
 
     demo.name = 'jiejie';
     console.log(demo);
+
+    console.log(demo.fullname);
 
 
 

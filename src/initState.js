@@ -1,5 +1,5 @@
 import {noop, isFunction, isObject, hasOwn} from './util/index';
-
+import Watcher from './watcher'
 import Observer, {observer} from './observer'
 
 
@@ -11,6 +11,9 @@ export function initState (Sue, options) {
     }
     if (options.data) {
         initData(Sue, options.data);
+    }
+    if (options.computed) {
+      initComputed(Sue, options.computed);
     }
 }
 
@@ -28,6 +31,27 @@ function proxy(Sue, key, sourceKey) {
         Sue[sourceKey][key] = val;
     }
     Object.defineProperty(Sue, key, sharePropertyDefinition);
+}
+
+function initComputed(Sue, computed) {
+  let watchers = Sue._computedWatchers = Object.create(null);
+
+  for (let key in computed) {
+    if (key in Sue) {
+      throw new Error(`The computed property has in Sue`);
+    } else {
+      const getter = computed[key];
+      watchers[key] = new Watcher(Sue, getter, noop);
+      defineComputed(Sue, key, getter);
+    }
+  }
+}
+
+function defineComputed(Sue, key, getter) {
+  sharePropertyDefinition.get = getter;
+  sharePropertyDefinition.set = noop;
+
+  Object.defineProperty(Sue, key, sharePropertyDefinition);
 }
 
 function initData(Sue, data) {

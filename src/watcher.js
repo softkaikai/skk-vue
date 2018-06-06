@@ -54,7 +54,16 @@ export default class Watcher {
     }
     get () {
         let vm = this.vm;
-        const getter = parseExpOrFn(this.expOrFn);
+        let getter = null;
+        if (typeof this.expOrFn === 'function') {
+          getter = this.expOrFn.bind(vm);
+        } else {
+          if (vm.$options.computed && vm.$options.computed[this.expOrFn]) {
+            getter = vm.$options.computed[this.expOrFn].bind(vm);
+          } else {
+            getter = parseExpOrFn(this.expOrFn);
+          }
+        }
         Dep.target = this;
         const value = getter(vm);
         if (this.deep) {
