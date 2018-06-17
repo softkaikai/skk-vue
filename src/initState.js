@@ -4,8 +4,14 @@ import Observer, {observer} from './observer'
 
 
 export function initState (Sue, options) {
+    Sue.parentScope = null;
+    Sue._scope = this;
+    Sue.$filters = {};
     Sue.$options = options;
     options.data = options.data || {};
+    if (options.filters) {
+        Sue.$filters = options.filters;
+    }
     if (options.methods) {
         initMethods(Sue, options.methods);
     }

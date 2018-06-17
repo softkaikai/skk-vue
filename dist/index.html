@@ -12,11 +12,11 @@
 </head>
 <body>
 <div id="demo">  111  {{'textNode.data' + name}}  222  </div>
+
 <div id="container">
     <div id="my-app">
         <button type="button" v-on:click="changeName">click</button>
         <button type="button" v-on:click="getName">get</button>
-        {{name}}
         <span v-text="name"></span>
         <input type="text" v-bind:placeholder="placeholder"
                v-model="firstName"
@@ -24,9 +24,28 @@
 
         <div v-html="myTemp"></div>
         <div v-text="fullname"></div>
+        <div>
+            name {{firstName | toUpper | addMoreStr}} age
+        </div>
+        <div>
+            {{firstName}} ---- {{lastName}}
+        </div>
+        <div v-if="show">
+            <i>{{name}}</i>
+            <strong>{{name}}</strong>
+        </div>
+
+        <ul>
+            <li v-for="(val, valIndex) of textArr">
+                {{valIndex}}-----{{val}}
+            </li>
+        </ul>
+        <div v-show="show">
+            My name is kaikai
+        </div>
     </div>
 </div>
-<!-- <script src="../lib/vue.js"></script> -->
+ <script src="../lib/vue.js"></script>
 <script src="skk-vue.js"></script>
 <script>
 
@@ -36,10 +55,11 @@
     console.log(textNode.data);
 
     /*var vm = new Vue({
-        el: '#my-app',
+        el: '#demo1',
         data () {
             return {
-                name: 'kaikai'
+                name: 'kaikai',
+                show: true
             }
         },
         methods: {
@@ -50,7 +70,7 @@
     })*/
 
 
-    var demo = new Sue({
+    let demo = new Sue({
         el: 'my-app',
         data () {
             return {
@@ -58,6 +78,7 @@
                 myTemp: '<i>this is kaikai</i><button type="button">click</button>',
                 name: 'kaikai',
                 temp: 123,
+                show: true,
                 sname: {
                     a: '123',
                     b: '456'
@@ -65,6 +86,7 @@
                 firstName: 'xiao',
                 lastName: 'ming',
                 sage: 22,
+                textArr: ['Alice', 'Walter', 'Jhon', 'kaikai'],
                 arr: [1,2,3,4]
             }
         },
@@ -83,13 +105,20 @@
             fullname: function() {
               return this.firstName + this.lastName;
             }
+        },
+        filters: {
+            toUpper (val) {
+                return val.toUpperCase();
+            },
+            addMoreStr (val) {
+                return val + '123456'
+            }
         }
     })
 
-    demo.name = 'jiejie';
     console.log(demo);
 
-    console.log(demo.fullname);
+
 
 
 

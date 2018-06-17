@@ -12,3 +12,7 @@ export function isFunction (obj) {
 export function hasOwn (obj, key) {
     return Object.prototype.hasOwnProperty.call(obj, key);
 }
+
+export function trim (str) {
+    return str.replace(/^\s+|\s+$/g, '');
+}

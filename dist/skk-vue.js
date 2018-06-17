@@ -16,6 +16,10 @@ var Sue = (function () {
         return Object.prototype.hasOwnProperty.call(obj, key);
     }
 
+    function trim (str) {
+        return str.replace(/^\s+|\s+$/g, '');
+    }
+
     let uid = 0;
     class Dep {
         constructor () {
@@ -222,8 +226,14 @@ var Sue = (function () {
     }
 
     function initState (Sue, options) {
+        Sue.parentScope = null;
+        Sue._scope = this;
+        Sue.$filters = {};
         Sue.$options = options;
         options.data = options.data || {};
+        if (options.filters) {
+            Sue.$filters = options.filters;
+        }
         if (options.methods) {
             initMethods(Sue, options.methods);
         }
@@ -336,9 +346,17 @@ var Sue = (function () {
 
     var vText = {
         dirBind: function (el, value) {
-            this.updateAttr = 'textContent';
-            this.el.removeAttribute(this.dir);
-            this.dirUpdate(el, this.vm[value]);
+            this.updateAttr = el.nodeType === 3 ? 'data' : 'textContent';
+            if (el.nodeType !== 3) {
+                this.el.removeAttribute(this.dir);
+            }
+            let realValue = '';
+            if (typeof value === 'function') {
+                realValue = value.call(this.vm);
+            } else {
+                realValue = this.vm[value];
+            }
+            this.dirUpdate(el, realValue);
         },
         dirUpdate: function (el, value) {
             el[this.updateAttr] = value.toString();
@@ -360,18 +378,144 @@ var Sue = (function () {
         }
     }
 
+    var vIf = {
+        dirBind: function (el, value) {
+            el.removeAttribute(this.dir);
+
+            this.parentScope = this.vm;
+            this._scope = Object.create(this.vm);
+            this.parentNode = el.parentNode;
+            this.refStart = document.createComment('v-if-start');
+            this.refEnd = document.createComment('v-if-end');
+            this.parentNode.insertBefore(this.refEnd, el);
+            this.parentNode.insertBefore(this.refStart, this.refEnd);
+            this.parentNode.removeChild(el);
+
+            if (this.vm[value]) {
+                this.dirInsert();
+            }
+        },
+        dirUpdate: function (el, value) {
+            if (value) {
+                this.dirInsert();
+            } else {
+                this.dirRemove();
+            }
+        },
+        dirInsert: function () {
+            this.cloneEl = this.el.cloneNode(true);
+            this.frag = this.compileTemplate(this._scope, this.cloneEl);
+            this.parentNode.insertBefore(this.frag, this.refEnd);
+        },
+        dirRemove: function () {
+            let removeEl = this.refStart.nextElementSibling;
+            this.parentNode.removeChild(removeEl);
+        }
+    }
+
+    class FragFactory {
+        constructor (vm, el, vfor, index, compileTemplate) {
+            this.parentScope = vm;
+            this._scope = Object.create(vm);
+            this._scope[vfor.val] = vm[vfor.dataField][index];
+            this._scope[vfor.key] = index;
+            this.cloneEl = el.cloneNode(true);
+            this.frag = compileTemplate(this._scope, this.cloneEl);
+        }
+    }
+
+    var vFor = {
+        dirBind: function (el, value) {
+            el.removeAttribute(this.dir);
+
+            this.processVFor(value);
+
+            // this.parentScope = this.vm;
+            // this._scope = Object.create(this.vm);
+            this.parentNode = el.parentNode;
+            this.refStart = document.createComment('v-for-start');
+            this.refEnd = document.createComment('v-for-end');
+            this.parentNode.insertBefore(this.refEnd, el);
+            this.parentNode.insertBefore(this.refStart, this.refEnd);
+            this.parentNode.removeChild(el);
+            this.dirUpdate(el, this.vm[this.vfor_dataField]);
+        },
+        dirUpdate: function (el, arrValue) {
+            this.frags = [];
+            if (!Array.isArray(arrValue)) {
+                throw new Error('The map value of v-for must be a array');
+            }
+            this.clearNode();
+            arrValue.forEach((val, index) => {
+                this.frags.push(new FragFactory(this.vm, this.el, this.vfor, index, this.compileTemplate));
+            });
+            this.insertNode();
+        },
+        clearNode () {
+            let next = this.refStart.nextSibling;
+            while (next !== this.refEnd) {
+                this.parentNode.removeChild(next);
+                next = this.refStart.nextSibling;
+            }
+        },
+        insertNode () {
+            this.frags.forEach((value, index) => {
+                this.parentNode.insertBefore(value.frag, this.refEnd);
+            });
+        },
+        processVFor: function (value) {
+            const reg = /(.*) (?:in|of) (.*)/;
+            let inMatch = value.match(reg);
+
+            this.vfor_dataField = trim(inMatch[2]);
+            if (inMatch) {
+                let itMatch = inMatch[1].match(/\((.*),(.*)\)/);
+                if (itMatch) {
+                    this.vfor_val = trim(itMatch[1]);
+                    this.vfor_key = trim(itMatch[2]);
+                } else {
+                    this.vfor_val = trim(inMatch[1]);
+                }
+            } else {
+                throw new Error('The express of v-for is wrong');
+            }
+            this.vfor = {
+                dataField: this.vfor_dataField,
+                val: this.vfor_val,
+                key: this.vfor_key || 'index'
+            };
+            console.log(this.vfor);
+        }
+    }
+
+    var vShow = {
+        dirBind: function (el, value) {
+            this.toggle(this.vm[value]);
+        },
+        dirUpdate: function (el, value) {
+            this.toggle(value);
+        },
+        toggle (value) {
+            this.el.style.display = !!value ? '' : 'none';
+        }
+    }
+
     var dirs = {
         'v-bind': vBind,
         'v-html': vHtml,
         'v-on': vOn,
         'v-text': vText,
         'v-model': vModel,
+        'v-if': vIf,
+        'v-for': vFor,
+        'v-show': vShow,
     }
 
     class Directive {
         constructor (des, vm) {
             this.vm = vm;
             this.el = des.el;
+            this.compileTemplate = des.compileTemplate;
             for (let key of  Object.keys(des.dirOperations)) {
                 this[key] = des.dirOperations[key];
             }
@@ -382,7 +526,11 @@ var Sue = (function () {
         _bind () {
             let that = this;
             this.dirBind(this.el, this.dirValue);
-            new Watcher(this.vm, this.dirValue, function (newVal, oldVal) {
+            let watchValue = this.dirValue;
+            if (this.dir === 'v-for') {
+                watchValue = this.vfor_dataField;
+            }
+            new Watcher(this.vm, watchValue, function (newVal, oldVal) {
                 that.dirUpdate(that.el, newVal);
             }, {
                 deep: true,
@@ -423,6 +571,7 @@ var Sue = (function () {
     }
 
     function compileTemplate(vm, el) {
+        vm._descriptors = [];
         let frag = document.createDocumentFragment();
         frag.appendChild(el);
 
@@ -436,11 +585,127 @@ var Sue = (function () {
     }
     function compileNode(vm, node) {
         if (node.nodeType === 1) {
-            getDirDescriptor(vm, node);
-            if (node.hasChildNodes) {
+            const result = getDirDescriptor(vm, node);
+            // 如果遇到v-if或者v-for就不继续编辑，因为他们有单独的作用域
+            if (node.hasChildNodes && result) {
                 compileNodeList(vm, node.childNodes);
             }
+        } else if (node.nodeType === 3) {
+            let tokens = compileTextNode(node);
+            let parsedTokens = processToken(tokens);
+            getTokensDescriptor(vm, node, parsedTokens);
+            // console.log(tokens);
         }
+    }
+
+    const tagRE = /{{.+?}}/g;
+    function compileTextNode (node) {
+        let lastIndex = 0;
+        let tokens = [];
+        let text = node.data;
+        let match = null;
+        let index, tagValue;
+
+        while(match = tagRE.exec(text)) {
+            index = match.index;
+
+            // If index is bigger then lastIndex, there has pure string between index and lastIndex
+            // eg: {{to}} demo {{from}}
+            if (index > lastIndex) {
+                tokens.push({
+                    value: text.slice(lastIndex, index)
+                });
+            }
+            tagValue = match[0];
+            tokens.push({
+                // 是否是插值
+                tag: true,
+                value: tagValue
+            });
+            lastIndex = index + tagValue.length;
+        }
+        if (lastIndex < text.length) {
+            tokens.push({
+                value: text.slice(lastIndex)
+            });
+        }
+
+        return tokens;
+    }
+
+    function processToken (tokens) {
+        let parsedTokens = [];
+        tokens.forEach((token, index) => {
+            if (!token.tag) {
+                parsedTokens.push(token);
+            } else {
+                parsedTokens.push(parseTokenValue(token));
+            }
+        });
+
+        return parsedTokens;
+    }
+
+    function parseTokenValue (token) {
+        let value = token.value.replace(/^{{|}}$/g, '');
+        let splitValues = value.split('|');
+        const filters = [];
+        let tokenValue = '';
+        splitValues.forEach((val, index) => {
+            if (index === 0) {
+                tokenValue = trim(val);
+            } else {
+                filters.push(trim(val));
+            }
+        });
+
+        token.value = tokenValue;
+        token.filters = filters;
+        return token;
+    }
+
+    function getTokensDescriptor (vm, node, tokens) {
+        let frag = document.createDocumentFragment();
+        tokens.forEach(token => {
+            frag.appendChild(createTextNode(vm, token));
+        });
+        if (node.parentNode) {
+            node.parentNode.replaceChild(frag, node);
+        }
+    }
+
+    function createTextNode (vm, token) {
+        let el = null;
+        if (!token.tag) {
+            el = document.createTextNode(token.value || '');
+        } else {
+            el = document.createTextNode('');
+            let expOrFn = '';
+            if (token.filters && token.filters.length) {
+                expOrFn = function () {
+                   return token.filters.reduce((val, fn) => {
+                        if (!this.$filters[fn]) {
+                            throw new Error(`filter ${fn} does not exist`);
+                        }
+                        return this.$filters[fn](val);
+                    }, this[token.value]);
+                };
+            } else {
+                expOrFn = token.value;
+            }
+
+            const descriptor = {
+                tag: 'text',
+                dir: 'v-text',
+                dirValue: expOrFn,
+                el,
+                dirParam: '',
+                dirOperations: dirs['v-text']
+            };
+            vm._descriptors.push(descriptor);
+        }
+
+        return el;
     }
 
     function compileNodeList(vm, childNodes) {
@@ -451,11 +716,21 @@ var Sue = (function () {
 
     function getDirDescriptor(vm, node) {
         let attrs = getAllAttrs(node);
+
+        for (let attr of attrs) {
+            if (attr.name === 'v-if' || attr.name === 'v-for') {
+                vm._descriptors.push(createDescriptor(node, attr));
+                return false;
+            }
+        }
+
         attrs.forEach((attr) => {
             if (dirs[attr.name]) {
                 vm._descriptors.push(createDescriptor(node, attr));
             }
         });
+
+        return true;
     }
 
     function createDescriptor(node, attr) {
@@ -466,7 +741,8 @@ var Sue = (function () {
             dirValue: attr.value,
             el: node,
             dirParam: attr.dirParam,
-            dirOperations: dirs[attr.name]
+            dirOperations: dirs[attr.name],
+            compileTemplate: compileTemplate
         }
     }
 

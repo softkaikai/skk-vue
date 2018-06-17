@@ -16,7 +16,7 @@ export default class Observer {
     }
 }
 
-function defineReactive(obj, key) {
+export function defineReactive(obj, key) {
     const dep = new Dep;
 
     let val = obj[key];
