@@ -61,6 +61,5 @@ export default {
             val: this.vfor_val,
             key: this.vfor_key || 'index'
         }
-        console.log(this.vfor);
     }
 }

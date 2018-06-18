@@ -5,6 +5,7 @@ export default class Directive {
         this.vm = vm;
         this.el = des.el;
         this.compileTemplate = des.compileTemplate;
+        this.tagName = des.tag;
         for (let key of  Object.keys(des.dirOperations)) {
             this[key] = des.dirOperations[key];
         }
@@ -19,7 +20,14 @@ export default class Directive {
         if (this.dir === 'v-for') {
             watchValue = this.vfor_dataField;
         }
+        if (this.dir === 'prop') {
+            return false;
+        }
+
         new Watcher(this.vm, watchValue, function (newVal, oldVal) {
+            if (this.dirValue === 'firstname') {
+                console.log(this.vm, watchValue);
+            }
             that.dirUpdate(that.el, newVal);
         }, {
             deep: true,

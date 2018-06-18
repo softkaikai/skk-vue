@@ -20,6 +20,24 @@ var Sue = (function () {
         return str.replace(/^\s+|\s+$/g, '');
     }
 
+    function parseDom (str) {
+        const div = document.createElement('div');
+        div.innerHTML = str;
+        return div.childNodes;
+    }
+
+    function callHook (vm, hookName) {
+        const fn = vm.$options[hookName];
+        if (fn) {
+            if (isFunction(fn)) {
+                fn.call(vm);
+            } else {
+                throw new Error('${hookName} is not a hook funciton')
+            }
+        }
+
+    }
+
     let uid = 0;
     class Dep {
         constructor () {
@@ -49,21 +67,24 @@ var Sue = (function () {
     let wait = false;
     let watchers = [];
     function pushQueen(watcher) {
-        if (watchers.includes(watcher.id)) {
+        if (watchers.some(item => {return item.id === watcher.id})) {
             return;
         }
+
         watchers.push(watcher);
-        if (!wait) {
-            watcherQueen();
-        }
+        watcherQueen();
+
     }
     function watcherQueen() {
-        setTimeout(() => {
-            watchers.forEach((watcher) => {
+        clearTimeout(wait);
+        wait = setTimeout(() => {
+            let temp = [...watchers];
+            watchers = [];
+            temp.forEach((watcher) => {
+                if (watcher.expOrFn === 'firstname') ;
                 watcher.run();
             });
             wait = false;
-            watchers = [];
         }, 0);
     }
     class Watcher {
@@ -75,12 +96,14 @@ var Sue = (function () {
                 this.deep = false;
                 this.sync = false;
             }
+            this.getfn = null;
             this.id = watcherId++;
             this.vm = vm;
             this.cb = cb;
             this.expOrFn = expOrFn;
             this.depIds = new Set();
             this.value = this.get();
+
         }
         update () {
             if (!this.sync) {
@@ -90,7 +113,13 @@ var Sue = (function () {
             }
         }
         run () {
-            const value = this.get();
+            let value = '';
+            if (this.getfn) {
+                value =  this.getfn(this.vm);
+            } else {
+                value =  this.get();
+            }
+
             if (this.value !== value || isObject(value) || Array.isArray(value)) {
                 this.cb.call(this.vm, value, this.value);
                 this.value = value;
@@ -115,6 +144,8 @@ var Sue = (function () {
                 traverse(value);
             }
             Dep.target = null;
+            this.getfn = getter;
+
             return value;
         }
         addDep (dep) {
@@ -199,7 +230,6 @@ var Sue = (function () {
             },
             set (newVal) {
                 if (newVal === val) {
-
                     return;
                 }
                 val = newVal;
@@ -223,90 +253,6 @@ var Sue = (function () {
             ob = new Observer(value);
         }
         return ob;
-    }
-
-    function initState (Sue, options) {
-        Sue.parentScope = null;
-        Sue._scope = this;
-        Sue.$filters = {};
-        Sue.$options = options;
-        options.data = options.data || {};
-        if (options.filters) {
-            Sue.$filters = options.filters;
-        }
-        if (options.methods) {
-            initMethods(Sue, options.methods);
-        }
-        if (options.data) {
-            initData(Sue, options.data);
-        }
-        if (options.computed) {
-          initComputed(Sue, options.computed);
-        }
-    }
-
-    var sharePropertyDefinition = {
-        enumerable: true,
-        configurable: true,
-        get: noop,
-        set: noop
-    };
-    function proxy(Sue, key, sourceKey) {
-        sharePropertyDefinition.get = function() {
-            return Sue[sourceKey][key];
-        };
-        sharePropertyDefinition.set = function(val) {
-            Sue[sourceKey][key] = val;
-        };
-        Object.defineProperty(Sue, key, sharePropertyDefinition);
-    }
-
-    function initComputed(Sue, computed) {
-      let watchers = Sue._computedWatchers = Object.create(null);
-
-      for (let key in computed) {
-        if (key in Sue) {
-          throw new Error(`The computed property has in Sue`);
-        } else {
-          const getter = computed[key];
-          watchers[key] = new Watcher(Sue, getter, noop);
-          defineComputed(Sue, key, getter);
-        }
-      }
-    }
-
-    function defineComputed(Sue, key, getter) {
-      sharePropertyDefinition.get = getter;
-      sharePropertyDefinition.set = noop;
-
-      Object.defineProperty(Sue, key, sharePropertyDefinition);
-    }
-
-    function initData(Sue, data) {
-        var datas = isFunction(data) ? data() : data || {};
-        var opts = Sue.$options;
-        Sue._data = datas;
-
-        for (let key in datas) {
-            if (key in Sue) {
-                throw new Error(`data ${key} conflicts with an existing Sue instance property`);
-            }
-            proxy(Sue, key, '_data');
-        }
-        observer(Sue._data);
-        // observer(Sue._data, datas);
-    }
-
-
-
-
-    function initMethods(Sue, methods) {
-        for (let key in methods) {
-            if (key in Sue) {
-                throw new Error(`method ${key} conflicts with an existing Sue instance property`);
-            }
-            Sue[key] = methods[key] == null ? noop : methods[key];
-        }
     }
 
     var vBind = {
@@ -350,6 +296,9 @@ var Sue = (function () {
             if (el.nodeType !== 3) {
                 this.el.removeAttribute(this.dir);
             }
+
+
+
             let realValue = '';
             if (typeof value === 'function') {
                 realValue = value.call(this.vm);
@@ -359,6 +308,9 @@ var Sue = (function () {
             this.dirUpdate(el, realValue);
         },
         dirUpdate: function (el, value) {
+            if (value === undefined || value === null) {
+                value = '';
+            }
             el[this.updateAttr] = value.toString();
         }
     }
@@ -484,7 +436,6 @@ var Sue = (function () {
                 val: this.vfor_val,
                 key: this.vfor_key || 'index'
             };
-            console.log(this.vfor);
         }
     }
 
@@ -500,6 +451,87 @@ var Sue = (function () {
         }
     }
 
+    var component = {
+        dirBind: function (el, value) {
+            this.parentNode = el.parentNode;
+            this.refStart = document.createComment('v-component-start');
+            this.refEnd = document.createComment('v-component-end');
+            this.parentNode.insertBefore(this.refEnd, el);
+            this.parentNode.insertBefore(this.refStart, this.refEnd);
+            this.parentNode.removeChild(el);
+
+            this.Sub = Sue.options.components[this.tagName];
+            this.opts = this.Sub.options.extendOptions;
+            this.opts.parsedProps = parseProps(el);
+            this.subIns = new this.Sub(this.opts);
+            this.vm.$children.push(this.subIns);
+            this.subIns.parentScope = this.vm;
+            if (!this.opts.template) {
+                throw new Error('Component must have template');
+            }
+            this.templateDom = parseDom(this.opts.template);
+            if (this.templateDom.length > 1) {
+                throw new Error('Component must have only one root element');
+            }
+
+            this.frag = this.compileTemplate(this.subIns, this.templateDom[0]);
+
+            this.parentNode.insertBefore(this.frag, this.refEnd);
+
+            // dom挂在完毕
+            callHook(this.subIns, 'mounted');
+        },
+        dirUpdate: function (el, value) {
+            this.el.setAttribute(this.updateAttr, value.toString());
+        }
+    }
+
+    function parseProps (node) {
+        const propObj = {};
+        const matchVBind = /v-bind/;
+
+        let attrs = Array.from(node.attributes) || [];
+
+        attrs.forEach((attr) => {
+            let dirParam = attr.name;
+            let name = '';
+            let dynamic = false;
+            if (matchVBind.test(attr.name)) {
+                dirParam = attr.name.split(':')[1];
+                name = attr.name.split(':')[0];
+                dynamic = true;
+            }
+
+            propObj[dirParam] = {
+                dynamic,
+                parentPath: attr.value,
+                propName: dirParam
+            };
+        });
+
+        return propObj;
+    }
+
+    var prop = {
+        dirBind: function () {
+            let that = this;
+            this.parentScope = this.vm.parentScope;
+            if (!this.parentScope) {
+                throw new Error('component compile error, parentScope not existing');
+            }
+            this.dirUpdate(null, this.parentScope[this.dirValue]);
+            new Watcher(this.parentScope, this.dirValue, function (newVal, oldVal)  {
+                that.dirUpdate(this.el, newVal);
+            }, {
+                deep: true,
+                sync: false
+            });
+        },
+        dirUpdate: function (el, value) {
+            this.vm[this.dirParam] = value;
+        }
+    }
+
     var dirs = {
         'v-bind': vBind,
         'v-html': vHtml,
@@ -509,6 +541,8 @@ var Sue = (function () {
         'v-if': vIf,
         'v-for': vFor,
         'v-show': vShow,
+        'component': component,
+        'prop': prop
     }
 
     class Directive {
@@ -516,6 +550,7 @@ var Sue = (function () {
             this.vm = vm;
             this.el = des.el;
             this.compileTemplate = des.compileTemplate;
+            this.tagName = des.tag;
             for (let key of  Object.keys(des.dirOperations)) {
                 this[key] = des.dirOperations[key];
             }
@@ -530,7 +565,14 @@ var Sue = (function () {
             if (this.dir === 'v-for') {
                 watchValue = this.vfor_dataField;
             }
+            if (this.dir === 'prop') {
+                return false;
+            }
+
             new Watcher(this.vm, watchValue, function (newVal, oldVal) {
+                if (this.dirValue === 'firstname') {
+                    console.log(this.vm, watchValue);
+                }
                 that.dirUpdate(that.el, newVal);
             }, {
                 deep: true,
@@ -568,10 +610,18 @@ var Sue = (function () {
         if (originElParent) {
             originElParent.appendChild(frag);
         }
+
+        // dom挂在完毕
+        callHook(vm, 'mounted');
     }
 
     function compileTemplate(vm, el) {
-        vm._descriptors = [];
+        if (vm._descriptorsTemp) {
+            vm._descriptors = [...vm._descriptorsTemp];
+        } else {
+            vm._descriptors = [];
+        }
+
         let frag = document.createDocumentFragment();
         frag.appendChild(el);
 
@@ -718,7 +768,8 @@ var Sue = (function () {
         let attrs = getAllAttrs(node);
 
         for (let attr of attrs) {
-            if (attr.name === 'v-if' || attr.name === 'v-for') {
+            if (attr.name === 'v-if' || attr.name === 'v-for' || attr.name === 'component') {
+
                 vm._descriptors.push(createDescriptor(node, attr));
                 return false;
             }
@@ -734,9 +785,10 @@ var Sue = (function () {
     }
 
     function createDescriptor(node, attr) {
+        const tagName = node.nodeName.toLowerCase();
 
         return {
-            tag: node.nodeName.toLowerCase(),
+            tag: tagName,
             dir: attr.name,
             dirValue: attr.value,
             el: node,
@@ -749,7 +801,15 @@ var Sue = (function () {
     let matchVBind = /v-bind/;
     let matchVOn = /v-on/;
     function getAllAttrs(node) {
-        let attrs = Array.from(node.attributes);
+        let attrs = Array.from(node.attributes) || [];
+
+        const tagName = node.nodeName.toLowerCase();
+        if (Sue.options.components[tagName]) {
+            attrs.push({
+                name: 'component',
+                value: '21321312321',
+            });
+        }
 
         return attrs.map((attr) => {
             let dirParam = '';
@@ -770,23 +830,249 @@ var Sue = (function () {
         })
     }
 
-    function Sue (options) {
-        this._descriptors = [];
-        this._dirs = [];
+    function initState (vm, options) {
+        vm.parentScope = null;
+        vm._scope = this;
+        vm.$filters = {};
+        vm.$options = options;
+        options.data = isFunction(options.data) ? options.data() : options.data || {};
+        initAsset(vm);
+        if (options.props) {
+            initProps(vm, options);
+        }
+        if (options.methods) {
+            initMethods(vm, options.methods);
+        }
+        if (options.data) {
+            initData(vm, options.data);
+        }
+        if (options.computed) {
+          initComputed(vm, options.computed);
+        }
+
+        // 数据绑定完毕
+        callHook(vm, 'created');
+    }
+
+    function initProps (vm, options) {
+        vm._descriptorsTemp = [];
+        const props = options.props;
+        const parsedProps = options.parsedProps;
+        const data = options.data = options.data || {};
+        for (let [prop, value] of Object.entries(props)) {
+            const parsedProp = parsedProps[prop];
+            if (prop in data) {
+                throw new Error(`The prop ${prop} has existing in data`);
+            }
+            if (parsedProp) {
+                if (parsedProp.dynamic) {
+                    vm._descriptorsTemp.push({
+                        tag: '',
+                        dir: 'prop',
+                        dirValue: parsedProp.parentPath,
+                        el: '',
+                        dirParam: prop,
+                        dirOperations: dirs['prop'],
+                        compileTemplate: compileTemplate
+                    });
+                    data[prop] = '';
+                } else {
+                    data[prop] = parsedProp.parentPath;
+                }
+            } else {
+                data[prop] = value || '';
+            }
+        }
+    }
+
+    function initAsset(vm) {
+        vm.$filters = Sue.options.filters;
+        vm.$components = Sue.options.components;
+    }
+
+    var sharePropertyDefinition = {
+        enumerable: true,
+        configurable: true,
+        get: noop,
+        set: noop
+    };
+    function proxy(Sue, key, sourceKey) {
+        sharePropertyDefinition.get = function() {
+            return Sue[sourceKey][key];
+        };
+        sharePropertyDefinition.set = function(val) {
+            Sue[sourceKey][key] = val;
+        };
+        Object.defineProperty(Sue, key, sharePropertyDefinition);
+    }
+
+    function initComputed(Sue, computed) {
+      let watchers = Sue._computedWatchers = Object.create(null);
+
+      for (let key in computed) {
+        if (key in Sue) {
+          throw new Error(`The computed property has in Sue`);
+        } else {
+          const getter = computed[key];
+          watchers[key] = new Watcher(Sue, getter, noop);
+          defineComputed(Sue, key, getter);
+        }
+      }
+    }
+
+    function defineComputed(Sue, key, getter) {
+      sharePropertyDefinition.get = getter;
+      sharePropertyDefinition.set = noop;
+
+      Object.defineProperty(Sue, key, sharePropertyDefinition);
+    }
+
+    function initData(Sue, datas) {
+        var opts = Sue.$options;
+        Sue._data = datas;
+
+        for (let key in datas) {
+            if (key in Sue) {
+                throw new Error(`data ${key} conflicts with an existing Sue instance property`);
+            }
+            proxy(Sue, key, '_data');
+        }
+        observer(Sue._data);
+        // observer(Sue._data, datas);
+    }
+
+
+
+
+    function initMethods(Sue, methods) {
+        for (let key in methods) {
+            if (key in Sue) {
+                throw new Error(`method ${key} conflicts with an existing Sue instance property`);
+            }
+            Sue[key] = methods[key] == null ? noop : methods[key];
+        }
+    }
+
+    var config = {
+        _assetTypes: [
+            '$filters',
+            '$components',
+        ]
+    }
+
+    function initMixin(Sue) {
+        Sue.options = {
+            filters: {},
+            components: {},
+        };
+
+        // add filter
+        Sue.filter = function (name, fn) {
+            Sue.options.filters[name] = fn;
+
+            return Sue;
+        };
+
+        // build component
+        Sue.extend = function (extendOptions) {
+            extendOptions = extendOptions || {};
+            let Super = this;
+            let Sub = createClass();
+            Sub.prototype = Object.create(Super.prototype);
+            Sub.prototype.constructor = Sub;
+
+            Sub.options = {extendOptions};
+            config._assetTypes.forEach((type) => {
+                Sub.options[type] = Super.options[type];
+            });
+
+            return Sub;
+        };
+
+        // register component
+        Sue.component = function (name, definition) {
+            Sue.options.components[name] = definition;
+            return definition;
+        };
+    }
+
+
+    function createClass () {
+        return new Function(
+            'return function (options) {this._init(options)}'
+        )()
+    }
+
+    function eventMixin(vm) {
+        vm._events = {};
+        // 添加监听事件
+        vm.$on = function(eventName, fn) {
+            vm._events[eventName] = vm._events[name] || [];
+            vm._events[eventName].push(fn);
+        };
+        // 广播事件
+        vm.$broadcast = function(eventName, ...args) {
+            broadcast(vm, eventName, ...args);
+        };
+
+        vm.$emit = function(eventName, ...args) {
+            emit(vm, eventName, ...args);
+        };
+    }
+
+    function broadcast (vm, eventName, ...args) {
+        if (vm.$children.length) {
+            vm.$children.forEach(child => {
+                const eventFns = child._events[eventName] || [];
+                eventFns.forEach(fn => {
+                    // return false 停止广播
+                    const result = fn(...args);
+
+                    if (child.$children.length && result !== false) {
+                        broadcast(child, eventName, ...args);
+                    }
+                });
+            });
+        }
+    }
+
+    function emit (vm, eventName, ...args) {
+        if (vm.parentScope) {
+            const eventFns = vm.parentScope._events[eventName] || [];
+            eventFns.forEach(fn => {
+                // return false 停止广播
+                const result = fn(...args);
+
+                if (vm.parentScope.parentScope && result !== false) {
+                    emit(child, eventName, ...args);
+                }
+            });
+        }
+    }
+
+    function Sue$1 (options) {
+
         this._init(options);
         this._compile();
     }
-    Sue.prototype._init = function(options) {
-
+    initMixin(Sue$1);
+    Sue$1.prototype._init = function(options) {
+        this._descriptors = [];
+        this._dirs = [];
+        this.$children = [];
+        eventMixin(this);
         initState(this, options);
     };
-    Sue.prototype._compile = function() {
+    Sue$1.prototype._compile = function() {
         compile(this);
     };
-    Sue.prototype.$watch = function(key, cb, options) {
+    Sue$1.prototype._compileTemplate = function(el) {
+        compileTemplate(this, el);
+    };
+    Sue$1.prototype.$watch = function(key, cb, options) {
         const watcher = new Watcher(this, key, cb, options);
     };
 
-    return Sue;
+    return Sue$1;
 
 }());

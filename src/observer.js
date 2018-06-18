@@ -37,7 +37,6 @@ export function defineReactive(obj, key) {
         },
         set (newVal) {
             if (newVal === val) {
-
                 return;
             }
             val = newVal;

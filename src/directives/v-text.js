@@ -4,6 +4,9 @@ export default {
         if (el.nodeType !== 3) {
             this.el.removeAttribute(this.dir);
         }
+
+
+
         let realValue = '';
         if (typeof value === 'function') {
             realValue = value.call(this.vm);
@@ -13,6 +16,9 @@ export default {
         this.dirUpdate(el, realValue);
     },
     dirUpdate: function (el, value) {
+        if (value === undefined || value === null) {
+            value = '';
+        }
         el[this.updateAttr] = value.toString();
     }
 }

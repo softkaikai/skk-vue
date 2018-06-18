@@ -1,6 +1,6 @@
 import dirs from './directives/index';
 import link from './link';
-import {trim} from './util/index'
+import {trim,callHook} from './util/index'
 
 export default function compile(vm) {
     let opts = vm.$options;
@@ -17,10 +17,18 @@ export default function compile(vm) {
     if (originElParent) {
         originElParent.appendChild(frag);
     }
+
+    // dom挂在完毕
+    callHook(vm, 'mounted');
 }
 
 export function compileTemplate(vm, el) {
-    vm._descriptors = [];
+    if (vm._descriptorsTemp) {
+        vm._descriptors = [...vm._descriptorsTemp];
+    } else {
+        vm._descriptors = [];
+    }
+
     let frag = document.createDocumentFragment();
     frag.appendChild(el);
 
@@ -167,7 +175,8 @@ function getDirDescriptor(vm, node) {
     let attrs = getAllAttrs(node);
 
     for (let attr of attrs) {
-        if (attr.name === 'v-if' || attr.name === 'v-for') {
+        if (attr.name === 'v-if' || attr.name === 'v-for' || attr.name === 'component') {
+
             vm._descriptors.push(createDescriptor(node, attr));
             return false;
         }
@@ -183,10 +192,10 @@ function getDirDescriptor(vm, node) {
 }
 
 function createDescriptor(node, attr) {
-    let dirParam = '';
+    const tagName = node.nodeName.toLowerCase();
 
     return {
-        tag: node.nodeName.toLowerCase(),
+        tag: tagName,
         dir: attr.name,
         dirValue: attr.value,
         el: node,
@@ -199,7 +208,15 @@ function createDescriptor(node, attr) {
 let matchVBind = /v-bind/;
 let matchVOn = /v-on/;
 function getAllAttrs(node) {
-    let attrs = Array.from(node.attributes);
+    let attrs = Array.from(node.attributes) || [];
+
+    const tagName = node.nodeName.toLowerCase();
+    if (Sue.options.components[tagName]) {
+        attrs.push({
+            name: 'component',
+            value: '21321312321',
+        });
+    }
 
     return attrs.map((attr) => {
         let dirParam = '';

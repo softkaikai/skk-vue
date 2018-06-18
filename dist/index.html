@@ -12,6 +12,9 @@
 </head>
 <body>
 <div id="demo">  111  {{'textNode.data' + name}}  222  </div>
+<div id="c">
+    <my-com>234</my-com>
+</div>
 
 <div id="container">
     <div id="my-app">
@@ -43,16 +46,19 @@
         <div v-show="show">
             My name is kaikai
         </div>
+
+
+        <first-component v-bind:firstname="firstName" lastname="hong"></first-component>
     </div>
 </div>
  <script src="../lib/vue.js"></script>
 <script src="skk-vue.js"></script>
 <script>
 
-    let dom = document.getElementById('demo');
-    let textNode = dom.childNodes[0];
+    let dom = document.getElementById('c');
+    let textNode = dom.childNodes[0].nextElementSibling;
     // textNode.data = 'jiejie';
-    console.log(textNode.data);
+    console.log(textNode.tagName.toLowerCase());
 
     /*var vm = new Vue({
         el: '#demo1',
@@ -69,6 +75,36 @@
         }
     })*/
 
+    Sue.filter('toUpper', (val) => {
+        return val.toUpperCase();
+    }).filter('addMoreStr', (val) => {
+        return val + '123456'
+    });
+    const FirstComponent = Sue.extend({
+        template: '<div><strong>{{firstname}} 23</strong><hr><strong>{{lastname}} 45</strong></div>',
+        data () {
+            return {
+                name: 'jiejie123',
+                age: 22
+            }
+        },
+        props: {
+            firstname: '',
+            lastname: ''
+        },
+        created () {
+            this.$on('getName', function(name) {
+                console.log('I get the data' + name);
+            })
+            setTimeout(() => {
+                this.$emit('getAge', 333);
+            }, 1000);
+        },
+        mounted () {
+            console.log('This is component mounted hook');
+        },
+    })
+    Sue.component('first-component', FirstComponent);
 
     let demo = new Sue({
         el: 'my-app',
@@ -78,6 +114,7 @@
                 myTemp: '<i>this is kaikai</i><button type="button">click</button>',
                 name: 'kaikai',
                 temp: 123,
+                age: 33,
                 show: true,
                 sname: {
                     a: '123',
@@ -89,6 +126,14 @@
                 textArr: ['Alice', 'Walter', 'Jhon', 'kaikai'],
                 arr: [1,2,3,4]
             }
+        },
+        created () {
+            this.$on('getAge', (age) => {
+                console.log('I get the age' + age);
+            })
+        },
+        mounted () {
+            console.log('This is mounted hook');
         },
         methods: {
             changeName (e) {
@@ -106,20 +151,13 @@
               return this.firstName + this.lastName;
             }
         },
-        filters: {
-            toUpper (val) {
-                return val.toUpperCase();
-            },
-            addMoreStr (val) {
-                return val + '123456'
-            }
-        }
-    })
+    });
+
+    setTimeout(() => {
+        demo.$broadcast('getName', 'kaikai');
+    }, 1000);
 
     console.log(demo);
-
-
-
 
 
 </script>

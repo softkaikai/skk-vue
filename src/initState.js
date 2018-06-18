@@ -1,26 +1,68 @@
-import {noop, isFunction, isObject, hasOwn} from './util/index';
+import {noop, isFunction, isObject, hasOwn, callHook} from './util/index';
 import Watcher from './watcher'
 import Observer, {observer} from './observer'
+import {compileTemplate} from "./compile";
+import dirs from "./directives/index";
 
 
-export function initState (Sue, options) {
-    Sue.parentScope = null;
-    Sue._scope = this;
-    Sue.$filters = {};
-    Sue.$options = options;
-    options.data = options.data || {};
-    if (options.filters) {
-        Sue.$filters = options.filters;
+export function initState (vm, options) {
+    vm.parentScope = null;
+    vm._scope = this;
+    vm.$filters = {};
+    vm.$options = options;
+    options.data = isFunction(options.data) ? options.data() : options.data || {};
+    initAsset(vm);
+    if (options.props) {
+        initProps(vm, options);
     }
     if (options.methods) {
-        initMethods(Sue, options.methods);
+        initMethods(vm, options.methods);
     }
     if (options.data) {
-        initData(Sue, options.data);
+        initData(vm, options.data);
     }
     if (options.computed) {
-      initComputed(Sue, options.computed);
+      initComputed(vm, options.computed);
     }
+
+    // 数据绑定完毕
+    callHook(vm, 'created');
+}
+
+function initProps (vm, options) {
+    vm._descriptorsTemp = [];
+    const props = options.props;
+    const parsedProps = options.parsedProps;
+    const data = options.data = options.data || {};
+    for (let [prop, value] of Object.entries(props)) {
+        const parsedProp = parsedProps[prop];
+        if (prop in data) {
+            throw new Error(`The prop ${prop} has existing in data`);
+        }
+        if (parsedProp) {
+            if (parsedProp.dynamic) {
+                vm._descriptorsTemp.push({
+                    tag: '',
+                    dir: 'prop',
+                    dirValue: parsedProp.parentPath,
+                    el: '',
+                    dirParam: prop,
+                    dirOperations: dirs['prop'],
+                    compileTemplate: compileTemplate
+                });
+                data[prop] = '';
+            } else {
+                data[prop] = parsedProp.parentPath;
+            }
+        } else {
+            data[prop] = value || '';
+        }
+    }
+}
+
+function initAsset(vm) {
+    vm.$filters = Sue.options.filters;
+    vm.$components = Sue.options.components;
 }
 
 var sharePropertyDefinition = {
@@ -60,8 +102,7 @@ function defineComputed(Sue, key, getter) {
   Object.defineProperty(Sue, key, sharePropertyDefinition);
 }
 
-function initData(Sue, data) {
-    var datas = isFunction(data) ? data() : data || {};
+function initData(Sue, datas) {
     var opts = Sue.$options;
     Sue._data = datas;
 
