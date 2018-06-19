@@ -171,6 +171,29 @@ When dom is all ready and mounted, a function named mounted will be called.<br /
     console.log('This is mounted')
   }
 ```
+## Event
+How to register a event?
+``` javascript
+  // vm is a instance of the Sue
+  vm.$on('name', (arg1, arg2) => {
+    console.log('This is name event');
+
+    // If you want to stop bubble of broadcast, you can return false;
+    return false;
+  })
+```
+How to broadcast a event to all children?
+``` javascript
+  // The first argument is the event name needed to call and the rest arguments
+  // will pass to callback function.
+  vm.$broadcast('name', 'arg1', 'arg2', ...);
+```
+How to emit a event to parent?
+``` javascript
+  // The first argument is the event name needed to call and the rest arguments
+  // will pass to callback function.
+  vm.$emit('name', 'arg1', 'arg2', ...);
+```
 
 ## Use Tips
 The library is just for learning and at the stage of experiment. So I can percent determine the library that lacks of **complete Compatibility and Function tests** must have many bugs that are strange and unexpected.Before you insist on using it, I hope you can realize what you will face. :chicken:
