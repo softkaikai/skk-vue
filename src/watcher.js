@@ -5,21 +5,25 @@ let watcherId = 0;
 let wait = false;
 let watchers = [];
 function pushQueen(watcher) {
-    if (watchers.includes(watcher.id)) {
+    if (watchers.some(item => {return item.id === watcher.id})) {
         return;
     }
+
     watchers.push(watcher);
-    if (!wait) {
-        watcherQueen();
-    }
+    watcherQueen();
+
 }
 function watcherQueen() {
-    setTimeout(() => {
-        watchers.forEach((watcher) => {
+    clearTimeout(wait);
+    wait = setTimeout(() => {
+        let temp = [...watchers];
+        watchers = [];
+        temp.forEach((watcher) => {
+            if (watcher.expOrFn === 'firstname') {
+            }
             watcher.run();
         })
         wait = false;
-        watchers = [];
     }, 0);
 }
 export default class Watcher {
@@ -31,12 +35,14 @@ export default class Watcher {
             this.deep = false;
             this.sync = false;
         }
+        this.getfn = null;
         this.id = watcherId++;
         this.vm = vm;
         this.cb = cb;
         this.expOrFn = expOrFn;
         this.depIds = new Set();
         this.value = this.get();
+
     }
     update () {
         if (!this.sync) {
@@ -46,7 +52,13 @@ export default class Watcher {
         }
     }
     run () {
-        const value = this.get();
+        let value = '';
+        if (this.getfn) {
+            value =  this.getfn(this.vm);
+        } else {
+            value =  this.get();
+        }
+
         if (this.value !== value || isObject(value) || Array.isArray(value)) {
             this.cb.call(this.vm, value, this.value);
             this.value = value;
@@ -71,6 +83,8 @@ export default class Watcher {
             traverse(value);
         }
         Dep.target = null;
+        this.getfn = getter;
+
         return value;
     }
     addDep (dep) {
