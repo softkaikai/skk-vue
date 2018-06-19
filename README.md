@@ -95,7 +95,7 @@ You can use it like following:
 ```
 
 ## Support Coumputed
-You can use computed property just as simple as vue, like below:
+You can use computed property just as simple as vue, like below: <br />
 **Note:** don't use allow function in the computed property, which may cause unexpected errors
 ``` javascript
   var demo = new Sue({
@@ -114,9 +114,9 @@ You can use computed property just as simple as vue, like below:
     console.log(demo.fullname) // xiao
 ```
 ## Customize filter
-function Sue.filter(name, fn)
-parameter: name {string} - the name of filter
-parameter: fn {function} - a function that processes data and achieve data as the first argument.
+function Sue.filter(name, fn) <br />
+parameter: name {string} - the name of filter <br />
+parameter: fn {function} - a function that processes data and achieve data as the first argument.<br />
 If calling Sue.filter() successfully which will return Sue. So you can chain call filter like following:
 ``` javascript
   Sue.filter('toUpper', (val) => {
@@ -161,8 +161,8 @@ Here is the html code:
   <first-component v-bind:firstname="firstName" lastname="hong"></first-component>
 ```
 ## Hook Function
-When data is all ready, a function named created will be called.
-When dom is all ready and mounted, a function named mounted will be called.
+When data is all ready, a function named created will be called.<br />
+When dom is all ready and mounted, a function named mounted will be called.<br />
 ``` javascript
   created () {
     console.log('This is created')
